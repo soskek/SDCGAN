@@ -1,32 +1,27 @@
-## You can try web demo [here](http://mattya.github.io/chainer-DCGAN/) !!
-
-# chainer-DCGAN
-Chainer implementation of Deep Convolutional Generative Adversarial Network (http://arxiv.org/abs/1511.06434)
+# DCGAN-Sentence
+Chainer implementation of Deep Convolutional Generative Adversarial Network (http://arxiv.org/abs/1511.06434)  
+This is derived from [mattya/chainer-DCGAN](https://github.com/mattya/chainer-DCGAN). Thank you!, mattya!
 
 ## 説明
-画像を生成するニューラルネットです。<br>
-12/24のchainer advent calendarに解説を書きました。 http://qiita.com/mattya/items/e5bfe5e04b9d2f0bbd47 <br>
-このコードは現在試行錯誤の途中であり、突然の変更などの可能性が十分あります。ご了承ください。
+文を生成するニューラルネットです。DCGANによりsentence-image (単語ベクトルのconcat) を生成します。<br>
 
 ## 使い方(暫定)
 * chainer 1.5が必要
-* 学習済みモデルから生成のみを行うには、visualizer.pyを使用する。GPU無くてもOK。
-``` python visualizer.py ```
-* 学習を行うにはDCGAN.pyを実行する。image_dir変数で指定されたディレクトリに、学習元となる画像ファイルを置く。GPUが必要で、何時間かかかる。
+* 学習を行うにはDCGAN.pyを実行する。
 
 ## サンプル
-20万枚の顔イラスト画像で約3時間学習を行った結果(GTX 970使用)。
-<img src="https://raw.githubusercontent.com/mattya/chainer-DCGAN/master/sample4.png" height="800px">
+多少のsyntax制約を満たすようにはできていそう. (数百万文学習後)
 
-特定の画像の生成元となったベクトルzにノイズを加えると、髪型や服装などが少しずつ異なる画像を生成できる。
-このことから、本モデルが過学習しているわけではない(特定の画像を暗記しているわけではない)ことが示唆される。
-<img src="https://raw.githubusercontent.com/mattya/chainer-DCGAN/master/sample2.png" height="600px">
-
-画像間の連続的変換。
-<img src="https://raw.githubusercontent.com/mattya/chainer-DCGAN/master/sample3.png" height="600px">
-
-## 参考文献
-本家の実装です。モデルの相違点はleaky_reluの代わりにeluを使っているくらいです。 https://github.com/soumith/dcgan.torch
+        0 six woman woman hugging the swimming . <EOS>.7
+        1 two men are walking on the at . <EOS>.8
+        2 two man and fabrics at the crying near a kitchen . <EOS>.11
+        3 decaying young woman is woman are . <EOS>.7
+        4 two woman is playing to the pegs . <EOS>.8
+        5 the man in just yellow shirt is standing away the water and the sidewalk . <EOS>.15
+        6 two men prostitutes are to down a skins them . <EOS>.10
+        7 the woman is playing to girl with at her waist-high and mannequins hillock . <EOS>.14
+        8 rooting women woman pulling to the crowd with a tugging onlookers . <EOS>.12
+        9 two women are playing on a lift . <EOS>.8
 
 
 
