@@ -5,7 +5,8 @@ import os
 from StringIO import StringIO
 import math
 #import pylab
-
+import sys, codecs
+sys.stdout = codecs.getwriter("utf-8")(sys.stdout)
 
 import chainer
 from chainer import computational_graph
@@ -29,7 +30,8 @@ out_image_dir = './out_images'
 out_model_dir = './out_models'
 
 
-nz = 200          # # of dim for Z
+##nz = 200          # # of dim for Z
+nz = 512          # # of dim for Z
 #batchsize=100
 batchsize=64
 n_epoch=10000
@@ -44,7 +46,7 @@ e_units = c_units / 4
 f_units = e_units / 2
 g_units = f_units / 2
 h_units = g_units / 2
-EOS_id = 0
+#EOS_id = 0
 EMPTY_id = 1
 
 # read all images
@@ -65,13 +67,29 @@ data_file = "/home/sosuke.k/sideline/alignment_entailment/data/dataset.train.pkl
 #data_file = "/home/sosuke.k/sideline/alignment_entailment/data/dataset.test.pkl"#sys.argv[1]
 vocab_file = "/home/sosuke.k/sideline/alignment_entailment/data/dataset.vocab.pkl"#sys.argv[2]
 
-embed_file = "/home/sosuke.k/sideline/alignment_entailment/data/model.12.20160318.173857"
-embedW = np.load(embed_file)["embed/W"]
-embedW[EMPTY_id,:] = 0.
+#embed_file = "/home/sosuke.k/sideline/alignment_entailment/data/model.12.20160318.173857"
+embed_file = "/home/sosuke.k/tmp/chainer0314/examples/ptb/rnnlm.model.0.1084348"#rnnlm.model.0.929441"#0.774534"
+embed_vocab_file = "/home/sosuke.k/tmp/chainer0314/examples/ptb/vocab.json"
+
+import json
+embed_vocab = json.load(open(embed_vocab_file))
+#rev_vocab = dict((v,k) for k,v in embed_vocab.items())
+
+EOS_id = embed_vocab["eos"]
+EMPTY_id = len(embed_vocab)
+EOS_str = "eos"
+
+embedW = np.load(embed_file)["predictor/embed/W"]
+embedW = np.concatenate([embedW, embedW[EOS_id:EOS_id+1,:]], axis=0)
+
+#embedW[EMPTY_id,:] = 0.
+
 embed = L.EmbedID(embedW.shape[0], embedW.shape[1])
 embed.W.data[:] = embedW[:]
 output = L.Linear(embedW.shape[1], embedW.shape[0], nobias=True)
-output.W.data[:] = embedW[:] / np.sqrt(np.sum(embedW[:]**2, axis=1, keepdims=True)+0.0000001)
+#output.W.data[:] = embedW[:]
+#output.W.data[:] = embedW[:] / np.sqrt(np.sum(embedW[:]**2, axis=1, keepdims=True)+0.0000001)
+output.W.data[:] = embedW[:] / (np.sum(embedW[:]**2, axis=1, keepdims=True)+0.0000001)**0.5
 
 vocab = pickle.load(open(vocab_file))
 rev_vocab = dict((v,k) for k,v in vocab.items())
@@ -81,10 +99,23 @@ for d in raw_dataset + raw_dataset2:
         dataset.append(d[0])
     if len(d[1]) <= max_sent-1:
         dataset.append(d[1])
-dataset = [[d[i] if i < len(d) else (EOS_id if i == len(d) else EMPTY_id) for i in range(max_sent)] for d in dataset]
+new_dataset = []
+for d in dataset:
+    try:
+        new_d = [embed_vocab[rev_vocab[d[i]]] if i < len(d) else (EOS_id if i == len(d) else EMPTY_id) for i in range(max_sent)]
+    except Exception as e:
+        continue
+    new_dataset.append(new_d)
+vocab = embed_vocab
+rev_vocab = dict((v,k) for k,v in vocab.items())
+
+dataset = new_dataset
+#dataset = [[ embed_vocab[rev_vocab[d[i]]] if i < len(d) else (EOS_id if i == len(d) else EMPTY_id) for i in range(max_sent)] for d in dataset]
 print len(dataset)
 
 n_train=len(dataset)
+
+
 
 class Generator(chainer.Chain):
     def __init__(self):
@@ -100,6 +131,9 @@ class Generator(chainer.Chain):
             bn1 = L.BatchNormalization(256),
             bn2 = L.BatchNormalization(128),
             bn3 = L.BatchNormalization(64),
+            
+            #rnn_r1 = L.StatefulGRU(1024, 512),
+            #rnn_l0 = L.StatefulGRU(512, 512),
         )
         
     def __call__(self, z, test=False):
@@ -107,6 +141,21 @@ class Generator(chainer.Chain):
         h = F.relu(self.bn1(self.dc1(h), test=test))
         h = F.relu(self.bn2(self.dc2(h), test=test))
         h = F.relu(self.bn3(self.dc3(h), test=test))
+
+        """
+        x = (self.dc4(h))#(64, 1, 20, 512)
+
+        self.rnn_r1.reset_state()
+        self.rnn_l0.reset_state()
+        l_out_seq = []
+        x_seq = F.split_axis( x, max_sent, axis=2 )
+        for one_x in reversed(x_seq):
+            l_out_seq.append( self.rnn_l0(one_x) )
+        r_out_seq = []
+        for one_x, one_l_out in zip(x_seq, l_out_seq):
+            r_out_seq.append( self.rnn_r1(F.concat([F.reshape(one_x, (x.data.shape[0], 512)), one_l_out], axis=1)) )
+        return F.reshape( F.concat(r_out_seq, axis=1), (x.data.shape[0], 1, max_sent, 512))
+        """
         x = (self.dc4(h))
         return x
 
@@ -126,10 +175,12 @@ class Discriminator(chainer.Chain):
             bn2 = L.BatchNormalization(256),
             bn3 = L.BatchNormalization(512),
         )
+        self.random_std = 0.01
+        self.max_std = 0.2
         
     def __call__(self, x, test=False):
         h = F.elu(self.c0(x))     # no bn because images from generator will katayotteru?
-        h = F.dropout(h, ratio=0.05, train=not test)#
+        h = F.dropout(h, ratio=0.1, train=not test)
         h = F.elu(self.bn1(self.c1(h), test=test))
         h = F.elu(self.bn2(self.c2(h), test=test))
         h = F.elu(self.bn3(self.c3(h), test=test))
@@ -184,54 +235,65 @@ def train_dcgan_labeled(gen, dis, epoch0=0):
             n_ins = len(perm[i:i+batchsize])
 
             emb_ids = xp.asarray( sum([dataset[j] for j in perm[i:i+batchsize]], []) ).astype(np.int32)
+
             x2 = F.reshape( Variable(embed(Variable(emb_ids)).data), (n_ins, 1, max_sent, 512) )
             # reshape de ikeru? soretomo cocat ?
             
             # train generator
             z = Variable(xp.random.uniform(-1, 1, (n_ins, nz), dtype=np.float32))
             x = gen(z)
+            #x = fill_eos_after_first_eos.
             yl = dis(x)
-            if not stop_flag_gen: L_gen = F.softmax_cross_entropy(yl, Variable(xp.zeros(n_ins, dtype=np.int32)))
-            if not stop_flag_dis: L_dis = F.softmax_cross_entropy(yl, Variable(xp.ones(n_ins, dtype=np.int32)))
+
+            L_gen = F.softmax_cross_entropy(yl, Variable(xp.zeros(n_ins, dtype=np.int32)))
+            L_dis = F.softmax_cross_entropy(yl, Variable(xp.ones(n_ins, dtype=np.int32)))
+            #if not stop_flag_gen: L_gen = F.softmax_cross_entropy(yl, Variable(xp.zeros(n_ins, dtype=np.int32)))
+            #if not stop_flag_dis: L_dis = F.softmax_cross_entropy(yl, Variable(xp.ones(n_ins, dtype=np.int32)))
             
             dis_result.extend([1. if t == 1 else 0. for t in xp.argmax(yl.data, axis=1)])
             
             # train discriminator
-            if not stop_flag_dis:
-                yl2 = dis(x2)
-                L_dis += F.softmax_cross_entropy(yl2, Variable(xp.zeros(n_ins, dtype=np.int32)))
+            #if not stop_flag_dis:
+            yl2 = dis( x2 + dis.xp.random.normal(0., dis.random_std, x2.data.shape) )
+            L_dis += F.softmax_cross_entropy(yl2, Variable(xp.zeros(n_ins, dtype=np.int32)))
             
-            if not stop_flag_gen:
-                o_gen.zero_grads()
-                L_gen.backward()
-                o_gen.update()
-                sum_l_gen.append(L_gen.data.get())
-                accum_gen += L_gen.data.get()
+            #if not stop_flag_gen:
+            o_gen.zero_grads()
+            L_gen.backward()
+            o_gen.update()
+            sum_l_gen.append(L_gen.data.get())
+            accum_gen += L_gen.data.get()
 
-            if not stop_flag_dis:
-                o_dis.zero_grads()
-                L_dis.backward()
-                o_dis.update()
-                sum_l_dis.append(L_dis.data.get())
-                accum_dis += L_dis.data.get()
+            #if not stop_flag_dis:
+            o_dis.zero_grads()
+            L_dis.backward()
+            o_dis.update()
+            sum_l_dis.append(L_dis.data.get())
+            accum_dis += L_dis.data.get()
 
             #print "backward done"
             if i % result_interval == 0:
                 per = len(dis_result)*1./(time.time()-prev_time)
                 prev_time = time.time()
-                print i, "\tdis-train:", not stop_flag_dis, "\tgen-train:", not stop_flag_gen, "\t(%.3lfi/s)" % per, datetime.today().strftime("%Y/%m/%d %H:%M:%S")
+                print i, "\tdis-train:", not stop_flag_dis, "\tgen-train:", not stop_flag_gen, "noise:", dis.random_std, "\t(%.3lfi/s)" % per, datetime.today().strftime("%Y/%m/%d %H:%M:%S")
                 print i, "\tLoss dis:", accum_dis/100/batchsize, "\tgen:", accum_gen/100/batchsize
                 WPdis = np.mean(dis_result)
                 print i, "\tWP dis:gen =", WPdis, ":", 1-WPdis
-                if WPdis >= 0.8 and epoch >= 1:
-                    stop_flag_dis = True
-                    stop_flag_gen = False
-                elif WPdis <= 0.2 and epoch >= 1:
-                    stop_flag_dis = False
-                    stop_flag_gen = True
-                else:
-                    stop_flag_dis = False
-                    stop_flag_gen = False
+
+                if (epoch >= 1 or i >= 50000):
+                    if WPdis >= 0.8:
+                        stop_flag_dis = True
+                        stop_flag_gen = False
+                        if dis.random_std < dis.max_std:
+                            dis.random_std *= 2.0
+                    elif WPdis <= 0.2:
+                        stop_flag_dis = False
+                        stop_flag_gen = True
+                        dis.random_std *= 0.5
+                    else:
+                        stop_flag_dis = False
+                        stop_flag_gen = False
+                        dis.random_std *= 0.9
 
                 accum_gen = 0.
                 accum_dis = 0.
@@ -245,9 +307,13 @@ def train_dcgan_labeled(gen, dis, epoch0=0):
                 for j,sent_seq in enumerate(make_sentences(x)):
                     sent = []
                     for t in sent_seq:
-                        if t == "EOS":
+                        """
+                        if t == EOS_str:
                             sent.append("<EOS>."+str(len(sent)))
                             break
+                        """
+                        if t == EOS_str:
+                            t = t.replace(EOS_str, "_")
                         sent.append(t)
                     print "\t",j," ".join(sent)
                 
@@ -257,7 +323,7 @@ def train_dcgan_labeled(gen, dis, epoch0=0):
         serializers.save_npz("%s/dcgan_state_gen_%d.npz"%(out_model_dir, epoch),o_gen)
         #print 'epoch end', epoch, sum_l_gen/n_train, sum_l_dis/n_train
         print 'epoch end', epoch, "dis:",sum(sum_l_dis)/len(sum_l_dis)/batchsize, "gen:",sum(sum_l_gen)/len(sum_l_gen)/batchsize
-
+        dis.max_std *= 0.5
 
 xp = cuda.cupy
 cuda.get_device(0).use()
