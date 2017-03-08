@@ -5,7 +5,8 @@ import os
 from StringIO import StringIO
 import math
 #import pylab
-import sys, codecs
+import sys
+import codecs
 sys.stdout = codecs.getwriter("utf-8")(sys.stdout)
 
 import chainer
@@ -30,12 +31,12 @@ out_image_dir = './out_images'
 out_model_dir = './out_models'
 
 
-##nz = 200          # # of dim for Z
+# nz = 200          # # of dim for Z
 nz = 512          # # of dim for Z
-#batchsize=100
-batchsize=64
-n_epoch=10000
-#n_train=200000
+# batchsize=100
+batchsize = 64
+n_epoch = 10000
+# n_train=200000
 #image_save_interval = 50000
 result_interval = batchsize * 20
 image_save_interval = batchsize * 100
@@ -63,12 +64,16 @@ for fn in fs:
 print len(dataset)
 """
 dataset = []
-data_file = "/home/sosuke.k/sideline/alignment_entailment/data/dataset.train.pkl"#sys.argv[1]
-#data_file = "/home/sosuke.k/sideline/alignment_entailment/data/dataset.test.pkl"#sys.argv[1]
-vocab_file = "/home/sosuke.k/sideline/alignment_entailment/data/dataset.vocab.pkl"#sys.argv[2]
+# sys.argv[1]
+data_file = "/home/sosuke.k/sideline/alignment_entailment/data/dataset.train.pkl"
+# data_file =
+# "/home/sosuke.k/sideline/alignment_entailment/data/dataset.test.pkl"#sys.argv[1]
+# sys.argv[2]
+vocab_file = "/home/sosuke.k/sideline/alignment_entailment/data/dataset.vocab.pkl"
 
 #embed_file = "/home/sosuke.k/sideline/alignment_entailment/data/model.12.20160318.173857"
-embed_file = "/home/sosuke.k/tmp/chainer0314/examples/ptb/rnnlm.model.0.1084348"#rnnlm.model.0.929441"#0.774534"
+# rnnlm.model.0.929441"#0.774534"
+embed_file = "/home/sosuke.k/tmp/chainer0314/examples/ptb/rnnlm.model.0.1084348"
 embed_vocab_file = "/home/sosuke.k/tmp/chainer0314/examples/ptb/vocab.json"
 
 import json
@@ -80,7 +85,7 @@ EMPTY_id = len(embed_vocab)
 EOS_str = "eos"
 
 embedW = np.load(embed_file)["predictor/embed/W"]
-embedW = np.concatenate([embedW, embedW[EOS_id:EOS_id+1,:]], axis=0)
+embedW = np.concatenate([embedW, embedW[EOS_id:EOS_id + 1, :]], axis=0)
 
 #embedW[EMPTY_id,:] = 0.
 
@@ -89,55 +94,63 @@ embed.W.data[:] = embedW[:]
 output = L.Linear(embedW.shape[1], embedW.shape[0], nobias=True)
 #output.W.data[:] = embedW[:]
 #output.W.data[:] = embedW[:] / np.sqrt(np.sum(embedW[:]**2, axis=1, keepdims=True)+0.0000001)
-output.W.data[:] = embedW[:] / (np.sum(embedW[:]**2, axis=1, keepdims=True)+0.0000001)**0.5
+output.W.data[:] = embedW[:] / \
+    (np.sum(embedW[:]**2, axis=1, keepdims=True) + 0.0000001)**0.5
 
 vocab = pickle.load(open(vocab_file))
-rev_vocab = dict((v,k) for k,v in vocab.items())
+rev_vocab = dict((v, k) for k, v in vocab.items())
 raw_dataset, raw_dataset2 = pickle.load(open(data_file))
 for d in raw_dataset + raw_dataset2:
-    if len(d[0]) <= max_sent-1:
+    if len(d[0]) <= max_sent - 1:
         dataset.append(d[0])
-    if len(d[1]) <= max_sent-1:
+    if len(d[1]) <= max_sent - 1:
         dataset.append(d[1])
 new_dataset = []
 for d in dataset:
     try:
-        new_d = [embed_vocab[rev_vocab[d[i]]] if i < len(d) else (EOS_id if i == len(d) else EMPTY_id) for i in range(max_sent)]
+        new_d = [embed_vocab[rev_vocab[d[i]]] if i < len(d) else (
+            EOS_id if i == len(d) else EMPTY_id) for i in range(max_sent)]
     except Exception as e:
         continue
     new_dataset.append(new_d)
 vocab = embed_vocab
-rev_vocab = dict((v,k) for k,v in vocab.items())
+rev_vocab = dict((v, k) for k, v in vocab.items())
 
 dataset = new_dataset
 #dataset = [[ embed_vocab[rev_vocab[d[i]]] if i < len(d) else (EOS_id if i == len(d) else EMPTY_id) for i in range(max_sent)] for d in dataset]
 print len(dataset)
 
-n_train=len(dataset)
-
+n_train = len(dataset)
 
 
 class Generator(chainer.Chain):
+
     def __init__(self):
         super(Generator, self).__init__(
-#            l0z = L.Linear(nz, 6*6*512, wscale=0.02*math.sqrt(nz)),
-            l0z = L.Linear(nz, (max_sent-4)*c_units*512, wscale=0.02*math.sqrt(nz)),
-            dc1 = L.Deconvolution2D(512, 256, (2,f_units), stride=(1,g_units), pad=(0,h_units), wscale=0.02*math.sqrt(4*4*512)),
-            dc2 = L.Deconvolution2D(256, 128, (2,f_units), stride=(1,g_units), pad=(0,h_units), wscale=0.02*math.sqrt(4*4*256)),
-            dc3 = L.Deconvolution2D(128, 64, (2,f_units), stride=(1,g_units), pad=(0,h_units), wscale=0.02*math.sqrt(4*4*128)),
-            dc4 = L.Deconvolution2D(64, 1, (2,f_units), stride=(1,g_units), pad=(0,h_units), wscale=0.02*math.sqrt(4*4*64)),
-            bn0l = L.BatchNormalization((max_sent-4)*c_units*512),
+            #            l0z = L.Linear(nz, 6*6*512, wscale=0.02*math.sqrt(nz)),
+            l0z=L.Linear(nz, (max_sent - 4) * c_units * \
+                         512, wscale=0.02 * math.sqrt(nz)),
+            dc1=L.Deconvolution2D(512, 256, (2, f_units), stride=(1, g_units), pad=(
+                0, h_units), wscale=0.02 * math.sqrt(4 * 4 * 512)),
+            dc2=L.Deconvolution2D(256, 128, (2, f_units), stride=(1, g_units), pad=(
+                0, h_units), wscale=0.02 * math.sqrt(4 * 4 * 256)),
+            dc3=L.Deconvolution2D(128, 64, (2, f_units), stride=(1, g_units), pad=(
+                0, h_units), wscale=0.02 * math.sqrt(4 * 4 * 128)),
+            dc4=L.Deconvolution2D(64, 1, (2, f_units), stride=(1, g_units), pad=(
+                0, h_units), wscale=0.02 * math.sqrt(4 * 4 * 64)),
+            bn0l=L.BatchNormalization((max_sent - 4) * c_units * 512),
             #bn0 = L.BatchNormalization(512),
-            bn1 = L.BatchNormalization(256),
-            bn2 = L.BatchNormalization(128),
-            bn3 = L.BatchNormalization(64),
-            
+            bn1=L.BatchNormalization(256),
+            bn2=L.BatchNormalization(128),
+            bn3=L.BatchNormalization(64),
+
             #rnn_r1 = L.StatefulGRU(1024, 512),
             #rnn_l0 = L.StatefulGRU(512, 512),
         )
-        
+
     def __call__(self, z, test=False):
-        h = F.reshape(F.relu(self.bn0l(self.l0z(z), test=test)), (z.data.shape[0], 512, (max_sent-4), c_units))
+        h = F.reshape(F.relu(self.bn0l(self.l0z(z), test=test)),
+                      (z.data.shape[0], 512, (max_sent - 4), c_units))
         h = F.relu(self.bn1(self.dc1(h), test=test))
         h = F.relu(self.bn2(self.dc2(h), test=test))
         h = F.relu(self.bn3(self.dc3(h), test=test))
@@ -160,26 +173,32 @@ class Generator(chainer.Chain):
         return x
 
 
-
 class Discriminator(chainer.Chain):
+
     def __init__(self):
         super(Discriminator, self).__init__(
-            c0 = L.Convolution2D(1, 64, (2,f_units), stride=(1,g_units), pad=(0,h_units), wscale=0.02*math.sqrt(4*4*3)),
-            c1 = L.Convolution2D(64, 128, (2,f_units), stride=(1,g_units), pad=(0,h_units), wscale=0.02*math.sqrt(4*4*64)),
-            c2 = L.Convolution2D(128, 256, (2,f_units), stride=(1,g_units), pad=(0,h_units), wscale=0.02*math.sqrt(4*4*128)),
-            c3 = L.Convolution2D(256, 512, (2,f_units), stride=(1,g_units), pad=(0,h_units), wscale=0.02*math.sqrt(4*4*256)),
+            c0=L.Convolution2D(1, 64, (2, f_units), stride=(1, g_units), pad=(
+                0, h_units), wscale=0.02 * math.sqrt(4 * 4 * 3)),
+            c1=L.Convolution2D(64, 128, (2, f_units), stride=(1, g_units), pad=(
+                0, h_units), wscale=0.02 * math.sqrt(4 * 4 * 64)),
+            c2=L.Convolution2D(128, 256, (2, f_units), stride=(1, g_units), pad=(
+                0, h_units), wscale=0.02 * math.sqrt(4 * 4 * 128)),
+            c3=L.Convolution2D(256, 512, (2, f_units), stride=(1, g_units), pad=(
+                0, h_units), wscale=0.02 * math.sqrt(4 * 4 * 256)),
             #l4l = L.Linear(max_sent*512, 2, wscale=0.02*math.sqrt(6*6*512)),
-            l4l = L.Linear((max_sent-4)*512*c_units, 2, wscale=0.02*math.sqrt(6*6*512)),
+            l4l=L.Linear((max_sent - 4) * 512 * c_units, 2,
+                         wscale=0.02 * math.sqrt(6 * 6 * 512)),
             #bn0 = L.BatchNormalization(64),
-            bn1 = L.BatchNormalization(128),
-            bn2 = L.BatchNormalization(256),
-            bn3 = L.BatchNormalization(512),
+            bn1=L.BatchNormalization(128),
+            bn2=L.BatchNormalization(256),
+            bn3=L.BatchNormalization(512),
         )
         self.random_std = 0.01
         self.max_std = 0.2
-        
+
     def __call__(self, x, test=False):
-        h = F.elu(self.c0(x))     # no bn because images from generator will katayotteru?
+        # no bn because images from generator will katayotteru?
+        h = F.elu(self.c0(x))
         h = F.dropout(h, ratio=0.1, train=not test)
         h = F.elu(self.bn1(self.c1(h), test=test))
         h = F.elu(self.bn2(self.c2(h), test=test))
@@ -188,18 +207,18 @@ class Discriminator(chainer.Chain):
         return l
 
 
-
-
 def clip_img(x):
-	return np.float32(-1 if x<-1 else (1 if x>1 else x))
+    return np.float32(-1 if x < -1 else (1 if x > 1 else x))
 
 
 def make_sentences(x):
-    h = F.reshape(x, (x.data.shape[0]*max_sent, 512))
+    h = F.reshape(x, (x.data.shape[0] * max_sent, 512))
     out = output(h)
     arg = xp.argmax(out.data, axis=1)
-    seq_L = [[rev_vocab[int(t)] for t in seq] for seq in xp.split(arg, x.data.shape[0], axis=0)]
+    seq_L = [[rev_vocab[int(t)] for t in seq]
+             for seq in xp.split(arg, x.data.shape[0], axis=0)]
     return seq_L
+
 
 def train_dcgan_labeled(gen, dis, epoch0=0):
     #o_gen = optimizers.Adam(alpha=0.0002, beta1=0.5)
@@ -208,15 +227,15 @@ def train_dcgan_labeled(gen, dis, epoch0=0):
     o_dis = optimizers.Adam(alpha=0.0001, beta1=0.5)
     o_gen.setup(gen)
     o_dis.setup(dis)
-    #o_gen.add_hook(chainer.optimizer.WeightDecay(0.00001))
-    #o_dis.add_hook(chainer.optimizer.WeightDecay(0.00001))
+    # o_gen.add_hook(chainer.optimizer.WeightDecay(0.00001))
+    # o_dis.add_hook(chainer.optimizer.WeightDecay(0.00001))
     o_gen.add_hook(chainer.optimizer.WeightDecay(0.000005))
     o_dis.add_hook(chainer.optimizer.WeightDecay(0.000005))
 
     stop_flag_dis = False
     stop_flag_gen = False
-    
-    for epoch in xrange(epoch0,n_epoch):
+
+    for epoch in xrange(epoch0, n_epoch):
         perm = np.random.permutation(n_train)
         #sum_l_dis = np.float32(0)
         #sum_l_gen = np.float32(0)
@@ -226,59 +245,67 @@ def train_dcgan_labeled(gen, dis, epoch0=0):
         accum_dis = 0.
         accum_gen = 0.
         prev_time = time.time()
-        dis_result = []# 1 if dis win gen, 0 otherwise
+        dis_result = []  # 1 if dis win gen, 0 otherwise
 
         for i in xrange(0, n_train, batchsize):
             # discriminator
             # 0: from dataset
             # 1: from noise
-            n_ins = len(perm[i:i+batchsize])
+            n_ins = len(perm[i:i + batchsize])
 
-            emb_ids = xp.asarray( sum([dataset[j] for j in perm[i:i+batchsize]], []) ).astype(np.int32)
+            emb_ids = xp.asarray(
+                sum([dataset[j] for j in perm[i:i + batchsize]], [])).astype(np.int32)
 
-            x2 = F.reshape( Variable(embed(Variable(emb_ids)).data), (n_ins, 1, max_sent, 512) )
+            x2 = F.reshape(Variable(embed(Variable(emb_ids)).data),
+                           (n_ins, 1, max_sent, 512))
             # reshape de ikeru? soretomo cocat ?
-            
+
             # train generator
-            z = Variable(xp.random.uniform(-1, 1, (n_ins, nz), dtype=np.float32))
+            z = Variable(
+                xp.random.uniform(-1, 1, (n_ins, nz), dtype=np.float32))
             x = gen(z)
-            #x = fill_eos_after_first_eos.
+            # x = fill_eos_after_first_eos.
             yl = dis(x)
 
-            L_gen = F.softmax_cross_entropy(yl, Variable(xp.zeros(n_ins, dtype=np.int32)))
-            L_dis = F.softmax_cross_entropy(yl, Variable(xp.ones(n_ins, dtype=np.int32)))
+            L_gen = F.softmax_cross_entropy(
+                yl, Variable(xp.zeros(n_ins, dtype=np.int32)))
+            L_dis = F.softmax_cross_entropy(
+                yl, Variable(xp.ones(n_ins, dtype=np.int32)))
             #if not stop_flag_gen: L_gen = F.softmax_cross_entropy(yl, Variable(xp.zeros(n_ins, dtype=np.int32)))
             #if not stop_flag_dis: L_dis = F.softmax_cross_entropy(yl, Variable(xp.ones(n_ins, dtype=np.int32)))
-            
-            dis_result.extend([1. if t == 1 else 0. for t in xp.argmax(yl.data, axis=1)])
-            
+
+            dis_result.extend(
+                [1. if t == 1 else 0. for t in xp.argmax(yl.data, axis=1)])
+
             # train discriminator
-            #if not stop_flag_dis:
-            yl2 = dis( x2 + dis.xp.random.normal(0., dis.random_std, x2.data.shape) )
-            L_dis += F.softmax_cross_entropy(yl2, Variable(xp.zeros(n_ins, dtype=np.int32)))
-            
-            #if not stop_flag_gen:
+            # if not stop_flag_dis:
+            yl2 = dis(x2 + dis.xp.random.normal(0.,
+                                                dis.random_std, x2.data.shape))
+            L_dis += F.softmax_cross_entropy(yl2,
+                                             Variable(xp.zeros(n_ins, dtype=np.int32)))
+
+            # if not stop_flag_gen:
             o_gen.zero_grads()
             L_gen.backward()
             o_gen.update()
             sum_l_gen.append(L_gen.data.get())
             accum_gen += L_gen.data.get()
 
-            #if not stop_flag_dis:
+            # if not stop_flag_dis:
             o_dis.zero_grads()
             L_dis.backward()
             o_dis.update()
             sum_l_dis.append(L_dis.data.get())
             accum_dis += L_dis.data.get()
 
-            #print "backward done"
+            # print "backward done"
             if i % result_interval == 0:
-                per = len(dis_result)*1./(time.time()-prev_time)
+                per = len(dis_result) * 1. / (time.time() - prev_time)
                 prev_time = time.time()
                 print i, "\tdis-train:", not stop_flag_dis, "\tgen-train:", not stop_flag_gen, "noise:", dis.random_std, "\t(%.3lfi/s)" % per, datetime.today().strftime("%Y/%m/%d %H:%M:%S")
-                print i, "\tLoss dis:", accum_dis/100/batchsize, "\tgen:", accum_gen/100/batchsize
+                print i, "\tLoss dis:", accum_dis / 100 / batchsize, "\tgen:", accum_gen / 100 / batchsize
                 WPdis = np.mean(dis_result)
-                print i, "\tWP dis:gen =", WPdis, ":", 1-WPdis
+                print i, "\tWP dis:gen =", WPdis, ":", 1 - WPdis
 
                 if (epoch >= 1 or i >= 50000):
                     if WPdis >= 0.8:
@@ -304,7 +331,7 @@ def train_dcgan_labeled(gen, dis, epoch0=0):
                 z = Variable(z)
                 x = gen(z, test=True)
                 print "make sentences"
-                for j,sent_seq in enumerate(make_sentences(x)):
+                for j, sent_seq in enumerate(make_sentences(x)):
                     sent = []
                     for t in sent_seq:
                         """
@@ -315,14 +342,18 @@ def train_dcgan_labeled(gen, dis, epoch0=0):
                         if t == EOS_str:
                             t = t.replace(EOS_str, "_")
                         sent.append(t)
-                    print "\t",j," ".join(sent)
-                
-        serializers.save_npz("%s/dcgan_model_dis_%d.npz"%(out_model_dir, epoch),dis)
-        serializers.save_npz("%s/dcgan_model_gen_%d.npz"%(out_model_dir, epoch),gen)
-        serializers.save_npz("%s/dcgan_state_dis_%d.npz"%(out_model_dir, epoch),o_dis)
-        serializers.save_npz("%s/dcgan_state_gen_%d.npz"%(out_model_dir, epoch),o_gen)
-        #print 'epoch end', epoch, sum_l_gen/n_train, sum_l_dis/n_train
-        print 'epoch end', epoch, "dis:",sum(sum_l_dis)/len(sum_l_dis)/batchsize, "gen:",sum(sum_l_gen)/len(sum_l_gen)/batchsize
+                    print "\t", j, " ".join(sent)
+
+        serializers.save_npz("%s/dcgan_model_dis_%d.npz" %
+                             (out_model_dir, epoch), dis)
+        serializers.save_npz("%s/dcgan_model_gen_%d.npz" %
+                             (out_model_dir, epoch), gen)
+        serializers.save_npz("%s/dcgan_state_dis_%d.npz" %
+                             (out_model_dir, epoch), o_dis)
+        serializers.save_npz("%s/dcgan_state_gen_%d.npz" %
+                             (out_model_dir, epoch), o_gen)
+        # print 'epoch end', epoch, sum_l_gen/n_train, sum_l_dis/n_train
+        print 'epoch end', epoch, "dis:", sum(sum_l_dis) / len(sum_l_dis) / batchsize, "gen:", sum(sum_l_gen) / len(sum_l_gen) / batchsize
         dis.max_std *= 0.5
 
 xp = cuda.cupy
