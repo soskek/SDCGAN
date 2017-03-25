@@ -50,31 +50,13 @@ h_units = g_units / 2
 #EOS_id = 0
 EMPTY_id = 1
 
-# read all images
-
-"""
-fs = os.listdir(image_dir)
-print len(fs)
-dataset = []
-for fn in fs:
-    f = open('%s/%s'%(image_dir,fn), 'rb')
-    img_bin = f.read()
-    dataset.append(img_bin)
-    f.close()
-print len(dataset)
-"""
 dataset = []
 # sys.argv[1]
-data_file = "/home/sosuke.k/sideline/alignment_entailment/data/dataset.train.pkl"
-# data_file =
-# "/home/sosuke.k/sideline/alignment_entailment/data/dataset.test.pkl"#sys.argv[1]
-# sys.argv[2]
-vocab_file = "/home/sosuke.k/sideline/alignment_entailment/data/dataset.vocab.pkl"
+data_file = "data/dataset.train.pkl"
+vocab_file = "data/dataset.vocab.pkl"
 
-#embed_file = "/home/sosuke.k/sideline/alignment_entailment/data/model.12.20160318.173857"
-# rnnlm.model.0.929441"#0.774534"
-embed_file = "/home/sosuke.k/tmp/chainer0314/examples/ptb/rnnlm.model.0.1084348"
-embed_vocab_file = "/home/sosuke.k/tmp/chainer0314/examples/ptb/vocab.json"
+embed_file = "ptb/rnnlm.model.0.1084348"
+embed_vocab_file = "ptb/vocab.json"
 
 import json
 embed_vocab = json.load(open(embed_vocab_file))
@@ -155,20 +137,6 @@ class Generator(chainer.Chain):
         h = F.relu(self.bn2(self.dc2(h), test=test))
         h = F.relu(self.bn3(self.dc3(h), test=test))
 
-        """
-        x = (self.dc4(h))#(64, 1, 20, 512)
-
-        self.rnn_r1.reset_state()
-        self.rnn_l0.reset_state()
-        l_out_seq = []
-        x_seq = F.split_axis( x, max_sent, axis=2 )
-        for one_x in reversed(x_seq):
-            l_out_seq.append( self.rnn_l0(one_x) )
-        r_out_seq = []
-        for one_x, one_l_out in zip(x_seq, l_out_seq):
-            r_out_seq.append( self.rnn_r1(F.concat([F.reshape(one_x, (x.data.shape[0], 512)), one_l_out], axis=1)) )
-        return F.reshape( F.concat(r_out_seq, axis=1), (x.data.shape[0], 1, max_sent, 512))
-        """
         x = (self.dc4(h))
         return x
 

@@ -1,16 +1,12 @@
 # DCGAN-Sentence
-Chainer implementation of Deep Convolutional Generative Adversarial Network (http://arxiv.org/abs/1511.06434)  
+This is a sentence generater
+using Deep Convolutional Generative Adversarial Network (DCGAN) (http://arxiv.org/abs/1511.06434).
+A sentence is represented as sentence-image with shape (`max_sentence_length` x `vector_size`), which is ordered concatenation of word vectors.
+
 This is derived from [mattya/chainer-DCGAN](https://github.com/mattya/chainer-DCGAN). Thank you!, mattya!
 
-## 説明
-文を生成するニューラルネットです。DCGANによりsentence-image (単語ベクトルのconcat) を生成します。<br>
 
-## 使い方(暫定)
-* chainer 1.5が必要
-* 学習を行うにはDCGAN.pyを実行する。
-
-## サンプル
-多少のsyntax制約を満たすようにはできていそう. (数百万文学習後)
+## Generated examples
 
         0 six woman woman hugging the swimming . <EOS>.7
         1 two men are walking on the at . <EOS>.8
