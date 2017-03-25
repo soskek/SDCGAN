@@ -3,6 +3,8 @@ This is a sentence generater
 using Deep Convolutional Generative Adversarial Network (DCGAN) (http://arxiv.org/abs/1511.06434).
 A sentence is represented as sentence-image with shape (`max_sentence_length` x `vector_size`), which is ordered concatenation of word vectors.
 
+This needs dataset of many sentences and pretrained word vectors.
+
 This is derived from [mattya/chainer-DCGAN](https://github.com/mattya/chainer-DCGAN). Thank you!, mattya!
 
 
